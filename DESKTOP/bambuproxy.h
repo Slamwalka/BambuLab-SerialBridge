@@ -36,6 +36,14 @@ public:
      */
     bool start();
 
+    /**
+     * @brief Setzt die explizite Bindungsadresse und erlaubt optional lokale LAN-Zugriffe.
+     * @param bindAddress IPv4-Adresse, auf der gelauert werden soll.
+     * @param allowLanAccess `true`, wenn eine lokale LAN-IP ausdrücklich erlaubt ist.
+     * @return `true`, wenn die Adresse als sicher akzeptiert wurde.
+     */
+    bool setListenAddress(const QString &bindAddress, bool allowLanAccess = false);
+
     QString proxyIp = "127.0.0.1";
 
     // Seriennummer, die in der lokalen Discovery-Antwort verwendet wird.
@@ -141,6 +149,10 @@ private:
      */
     void sendNextFtpChunk();
     bool        m_isUpload             = false;
+    QString     m_listenAddress        = "127.0.0.1";
+    bool        m_allowLanAccess       = false;
+
+    static bool isAllowedListenAddress(const QString &address, bool allowLanAccess);
 
 private:
     QTimer      m_ackTimer;  // Überwacht ausstehende Upload-Bestätigungen.

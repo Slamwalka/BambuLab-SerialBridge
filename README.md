@@ -28,6 +28,13 @@ Dieses Projekt ist eine unabhängige, nicht von Bambu Lab entwickelte Software.
 Bambu Lab, Bambu Studio und P1S sind Marken ihrer jeweiligen Inhaber. Das
 Projekt wird von Bambu Lab weder bereitgestellt noch offiziell unterstützt.
 
+### Aktueller Status der Seriennummer
+
+Die Drucker-Seriennummer wird derzeit noch manuell in
+`DESKTOP/bambuproxy.h` hinterlegt. Das ist ein Übergangszustand und wird in
+der nächsten Variante bzw. im ersten Release-Paket über das Tray-Menü oder
+ähnliche Konfigurationsdialoge automatisch ermittelt und gesetzt werden.
+
 ## Lokaler Betrieb ohne Cloud
 
 Mit der Bridge kann der Drucker an den Bambu-Lab-Cloud-Diensten vorbei im
@@ -82,11 +89,14 @@ die Firmware neu bauen und anschließend auf den Arduino flashen. Die
 Netzwerkadressen `192.168.4.1` für den Arduino und `192.168.4.2` für den
 Drucker sind ebenfalls Bestandteil der aktuellen Firmware.
 
-Die Desktop-Anwendung lauscht derzeit auf den verfügbaren Netzwerkinterfaces.
-Die Proxy-Dienste besitzen keine zusätzliche Benutzerverwaltung. Das WLAN
-und die Proxy-Ports sollten deshalb nur in einem vertrauenswürdigen lokalen
-Netzwerk verwendet und nicht ins Internet oder in ein unkontrolliertes WLAN
-weitergeleitet werden.
+Die Desktop-Anwendung bindet die Proxy-Dienste standardmäßig nur an eine
+explizit gewählte lokale Adresse. Das ist der sichere Default für einen
+vertrauenswürdigen lokalen Rechner oder ein lokales Heimnetz. Eine Bindung auf
+`0.0.0.0` beziehungsweise `QHostAddress::Any` ist für diese Software nicht der
+Standardpfad. Die Proxy-Dienste besitzen keine zusätzliche
+Benutzerverwaltung. Das WLAN und die Proxy-Ports sollten deshalb nur in einem
+vertrauten lokalen Netzwerk verwendet und nicht ins Internet oder in ein
+unkontrolliertes WLAN weitergeleitet werden.
 
 ## Bambu Studio
 
@@ -134,6 +144,21 @@ dokumentiert.
 | --- | --- |
 | `DESKTOP/` | Qt-Anwendung mit serieller Bridge, TCP-Proxy und UDP-Discovery |
 | `MCU/` | PlatformIO-Projekt für den Arduino UNO R4 WiFi |
+
+## Entwicklungsumgebungen und offizielle IDEs
+
+Für die Entwicklung, das Bauen und den Upload können die offiziellen Tools der
+jeweiligen Ökosysteme verwendet werden:
+
+- [Qt Creator](https://doc.qt.io/qtcreator/creator-overview.html) für die
+  Desktop-Anwendung
+- [Arduino IDE](https://support.arduino.cc/hc/en-us/articles/360019833020-Install-the-Arduino-IDE)
+  für die Arduino- und Board-Konfiguration
+- [PlatformIO IDE](https://docs.platformio.org/en/latest/core/installation.html)
+  oder [PlatformIO Core](https://docs.platformio.org/en/latest/core/installation/index.html)
+  für den MCU-Build und Upload
+- [Bambu Lab Wiki](https://wiki.bambulab.com/) für Hardware-, Firmware- und
+  Netzwerkinformationen des Druckers
 
 ## Voraussetzungen
 

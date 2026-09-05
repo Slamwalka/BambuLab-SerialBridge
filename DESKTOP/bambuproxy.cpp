@@ -5,6 +5,57 @@
 #include <QDateTime>
 #include <QNetworkInterface>
 
+bool BambuProxy::isAllowedListenAddress(const QString &address, bool allowLanAccess)
+{
+    if (address.isEmpty()) {
+        return false;
+    }
+
+    const QHostAddress candidate(address);
+    if (candidate.isNull() || candidate.protocol() != QAbstractSocket::IPv4Protocol) {
+        return false;
+    }
+
+    if (candidate == QHostAddress::LocalHost || candidate == QHostAddress("127.0.0.1")) {
+        return true;
+    }
+
+    if (!allowLanAccess) {
+        return false;
+    }
+
+    const QString ip = candidate.toString();
+    if (ip.startsWith("192.168.")) {
+        return true;
+    }
+    if (ip.startsWith("10.")) {
+        return true;
+    }
+    if (ip.startsWith("172.")) {
+        const QString remainder = ip.mid(4);
+        const int dotIndex = remainder.indexOf('.');
+        if (dotIndex > 0) {
+            const int secondOctet = remainder.left(dotIndex).toInt();
+            return secondOctet >= 16 && secondOctet <= 31;
+        }
+    }
+
+    return false;
+}
+
+bool BambuProxy::setListenAddress(const QString &bindAddress, bool allowLanAccess)
+{
+    if (!isAllowedListenAddress(bindAddress, allowLanAccess)) {
+        m_listenAddress = "127.0.0.1";
+        m_allowLanAccess = false;
+        return false;
+    }
+
+    m_listenAddress = bindAddress;
+    m_allowLanAccess = allowLanAccess;
+    return true;
+}
+
 BambuProxy::BambuProxy(SerialBridge *serial, QObject *parent)
     : QObject(parent), m_serial(serial)
 {
@@ -42,28 +93,36 @@ BambuProxy::~BambuProxy()
 
 bool BambuProxy::start()
 {
-    // MQTT wird auf dem lokalen Proxy-Port 8883 angenommen.
-    if (!m_mqttServer.listen(QHostAddress::Any, 8883)) {
-        qCritical() << QDateTime::currentDateTimeUtc().toString() << "Fehler: Konnte MQTT Server auf Port 8883 nicht starten!";
+    const QHostAddress bindAddress(m_listenAddress);
+
+    if (bindAddress.isNull() || !isAllowedListenAddress(m_listenAddress, m_allowLanAccess)) {
+        qWarning() << QDateTime::currentDateTimeUtc().toString() << "Ungültige Bindungsadresse, verwende Standard 127.0.0.1.";
+        m_listenAddress = "127.0.0.1";
+        m_allowLanAccess = false;
+    }
+
+    // MQTT wird auf der explizit gewählten lokalen Bindungsadresse angenommen.
+    if (!m_mqttServer.listen(QHostAddress(m_listenAddress), 8883)) {
+        qCritical() << QDateTime::currentDateTimeUtc().toString() << "Fehler: Konnte MQTT Server auf" << m_listenAddress << ":8883 nicht starten!";
         return false;
     }
     connect(&m_mqttServer, &QTcpServer::newConnection, this, &BambuProxy::onNewMqttConnection);
-    qInfo() << QDateTime::currentDateTimeUtc().toString() << "MQTT Server lauscht auf 127.0.0.1:8883";
+    qInfo() << QDateTime::currentDateTimeUtc().toString() << "MQTT Server lauscht auf" << m_listenAddress << ":8883";
 
-    // FTP-Steuerdaten werden auf Port 990 angenommen.
-    if (!m_ftpControlServer.listen(QHostAddress::Any, 990)) {
-        qCritical() << QDateTime::currentDateTimeUtc().toString() << "Fehler: Konnte FTP Control Server auf Port 990 nicht starten!";
+    // FTP-Steuerdaten werden auf der selben lokalen Bindungsadresse angenommen.
+    if (!m_ftpControlServer.listen(QHostAddress(m_listenAddress), 990)) {
+        qCritical() << QDateTime::currentDateTimeUtc().toString() << "Fehler: Konnte FTP Control Server auf" << m_listenAddress << ":990 nicht starten!";
         return false;
     }
     connect(&m_ftpControlServer, &QTcpServer::newConnection, this, &BambuProxy::onNewFtpControlConnection);
-    qInfo() << QDateTime::currentDateTimeUtc().toString() << "FTP Control Server lauscht auf 127.0.0.1:990";
+    qInfo() << QDateTime::currentDateTimeUtc().toString() << "FTP Control Server lauscht auf" << m_listenAddress << ":990";
 
-    // FTP-Daten werden über den Proxy-Port 2024 angenommen.
-    if (!m_ftpDataServer.listen(QHostAddress::Any, 2024)) {
-        qWarning() << QDateTime::currentDateTimeUtc().toString() << "Warnung: FTP Data Server auf Port 2024 konnte nicht gestartet werden.";
+    // FTP-Daten werden über den gleichen lokalen Bindungshost akzeptiert.
+    if (!m_ftpDataServer.listen(QHostAddress(m_listenAddress), 2024)) {
+        qWarning() << QDateTime::currentDateTimeUtc().toString() << "Warnung: FTP Data Server auf" << m_listenAddress << ":2024 konnte nicht gestartet werden.";
     } else {
         connect(&m_ftpDataServer, &QTcpServer::newConnection, this, &BambuProxy::onNewFtpDataConnection);
-        qInfo() << QDateTime::currentDateTimeUtc().toString() << "FTP Data Server lauscht auf Port 2024";
+        qInfo() << QDateTime::currentDateTimeUtc().toString() << "FTP Data Server lauscht auf" << m_listenAddress << ":2024";
     }
 
     return true;
